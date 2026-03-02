@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理想汽车 - 商机日节奏拆分工具 (可视化调整版)</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 可视化图表区域样式 */
+        .chart-adjustment-area {
+            margin: 24px 0;
+            padding: 24px;
+            background: linear-gradient(135deg, #F0F5FF 0%, #FAFBFC 100%);
+            border: 2px solid #D1E4FF;
+            border-radius: 16px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-header h3::before {
+            content: '📊';
+            font-size: 20px;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: relative;
+            height: 400px;
+        }
+
+        .chart-hint {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 12px;
+            padding: 12px;
+            background: #FFF9E5;
+            border-radius: 8px;
+            border: 1px solid #FFE7B3;
+        }
+
+        .chart-hint strong {
+            color: var(--li-blue);
+        }
+
+        .adjustment-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .stat-card {
+            flex: 1;
+            padding: 16px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #E5E8EB;
+            text-align: center;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--li-blue);
+        }
+
+        .stat-card.changed .value {
+            color: var(--warning);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-inner">
+                <div class="header-brand">
+                    <div class="header-logo">
+                        <div class="logo-mark">Li</div>
+                        <span class="header-title">理想汽车</span>
+                    </div>
+                    <div class="header-divider"></div>
+                    <span class="header-title">获客运营工具</span>
+                </div>
+                <span class="header-badge">DEMO - 可视化调整</span>
+            </div>
+        </header>
+
+        <div class="hero">
+            <div class="hero-content">
+                <div class="hero-label">Sales Ops · 商机管理 · 可视化版</div>
+                <h1>商机<span>日节奏</span>拆分工具</h1>
+                <p class="hero-desc">基于历史数据智能预测月度商机分配比例，支持多车型、多维度权重调整，新增可视化拖拽调整功能</p>
+            </div>
+        </div>
+
+        <main>
+            <!-- 步骤1: 上传历史数据 -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="step-number">1</span>
+                    <h2>上传历史数据</h2>
+                </div>
+                <div class="card-body">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+                        <div class="upload-content">
+                            <div class="upload-icon-wrap">
+                                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                            </div>
+                            <p>点击或拖拽上传 Excel 文件</p>
+                            <span class="upload-hint">支持 .xlsx / .xls 格式，包含：日期、区域部门（可选）、车型、实际量</span>
+                        </div>
+                    </div>
+                    <div id="fileInfo" class="file-info hidden"></div>
+                </div>
+            </section>
+
+            <!-- 步骤2: 选择预测月份 -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="step-number">2</span>
+                    <h2>选择预测月份</h2>
+                </div>
+                <div class="card-body">
+                    <div class="month-selector">
+                        <label>预测年份：</label>
+                        <select id="yearSelect"></select>
+
+                        <label>预测月份：</label>
+                        <select id="monthSelect">
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+                    <div class="ignore-history-option">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ignoreHistoryCheckbox">
+                            <span>忽略历史同期数据（春节月份建议勾选）</span>
+                        </label>
+                        <p class="option-hint">勾选后将完全按工作日 / 周末 / 节假日权重分配，不使用去年同期数据</p>
+                    </div>
+
+                    <div class="weight-adjustment">
+                        <h4>权重调整（可选）</h4>
+                        <p class="adjustment-hint">根据业务预期调整不同日期类型的权重倍数，默认 1.0 为不调整</p>
+                        <div class="adjustment-grid">
+                            <div class="adjustment-item">
+                                <label>工作日权重倍数</label>
+                                <input type="number" id="weekdayMultiplier" value="1.0" min="0.1" max="5" step="0.1">
+                            </div>
+                            <div class="adjustment-item">
+                                <label>周末权重倍数</label>
+                                <input type="number" id="weekendMultiplier" value="1.0" min="0.1" max="5" step="0.1">
+                            </div>
+                            <div class="adjustment-item">
+                                <label>节假日权重倍数</label>
+                                <input type="number" id="holidayMultiplier" value="1.0" min="0.1" max="5" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 步骤3: 标记特殊节点 -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="step-number">3</span>
+                    <h2>标记特殊节点</h2>
+                    <span class="header-tag">可选</span>
+                </div>
+                <div class="card-body">
+                    <div id="calendarView" class="calendar-placeholder">
+                        <p>请先选择预测月份，系统将自动标记法定节假日</p>
+                    </div>
+                    <div class="special-events-form hidden" id="specialEventsForm">
+                        <h3>添加特殊节点</h3>
+                        <div class="event-input-group">
+                            <input type="date" id="eventDate" placeholder="选择日期">
+                            <select id="eventType">
+                                <option value="adjustment">调休上班</option>
+                                <option value="promotion">促销活动</option>
+                                <option value="launch">新车发布</option>
+                                <option value="other">其他</option>
+                            </select>
+                            <input type="text" id="eventName" placeholder="节点名称">
+                            <button type="button" id="addEventBtn" class="btn btn-secondary">添加</button>
+                        </div>
+                        <div id="eventsList" class="events-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 步骤4: 生成比例 -->
+            <section class="card">
+                <div class="card-header">
+                    <span class="step-number">4</span>
+                    <h2>生成分配比例</h2>
+                </div>
+                <div class="card-body">
+                    <button id="generateBtn" class="btn btn-primary btn-lg" disabled>
+                        生成每日分配比例
+                    </button>
+                    <div id="loading" class="loading hidden">
+                        <div class="spinner"></div>
+                        <p>正在分析历史数据...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 步骤5: 查看结果 -->
+            <section class="card hidden" id="resultsSection">
+                <div class="card-header">
+                    <h2>分配比例结果</h2>
+                    <div class="export-area">
+                        <button id="exportBtn" class="btn btn-success">导出 Excel（标准格式）</button>
+                        <button id="exportHorizontalBtn" class="btn btn-success" style="margin-left: 10px;">导出 Excel（横向日期）</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="vehicle-tabs" id="vehicleTabs"></div>
+
+                    <!-- 可视化调整区域 (新增) -->
+                    <div class="chart-adjustment-area" id="chartAdjustmentArea">
+                        <div class="chart-header">
+                            <h3>可视化拖拽调整</h3>
+                            <div class="chart-controls">
+                                <button id="resetAdjustmentBtn" class="btn btn-secondary">重置调整</button>
+                                <button id="toggleChartBtn" class="btn btn-secondary">收起图表</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="ratioChart"></canvas>
+                        </div>
+                        <div class="chart-hint">
+                            💡 <strong>使用提示：</strong>点击并拖拽柱状图上下移动来调整每日比例，系统会自动重新归一化保证总和为100%
+                        </div>
+                        <div class="adjustment-stats">
+                            <div class="stat-card">
+                                <div class="label">调整天数</div>
+                                <div class="value" id="adjustedDaysCount">0</div>
+                            </div>
+                            <div class="stat-card changed">
+                                <div class="label">最大调整幅度</div>
+                                <div class="value" id="maxAdjustment">0%</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="label">当前总比例</div>
+                                <div class="value" id="totalRatio">100.00%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 目标量拆分输入 -->
+                    <div class="target-split-area" id="targetSplitArea" style="display:none">
+                        <div class="target-split-row">
+                            <svg class="target-split-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                            </svg>
+                            <label class="target-split-label"><span id="targetVehicleLabel">-</span> 月度目标量：</label>
+                            <input type="number" id="vehicleTargetInput" class="target-split-input"
+                                   min="1" step="1" placeholder="输入月度目标总量（整数）">
+                            <span class="target-split-feedback hint" id="targetSplitFeedback">输入后自动按比例拆分到每日</span>
+                            <button type="button" id="clearTargetBtn" class="btn-clear-target" style="display:none">清除</button>
+                        </div>
+                    </div>
+
+                    <div class="comparison-layout">
+                        <!-- 左：预测分配比例 -->
+                        <div class="comparison-panel">
+                            <h3 class="panel-title primary">预测分配比例</h3>
+                            <div class="results-table-container">
+                                <table id="resultsTable" class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>日期</th>
+                                            <th>星期</th>
+                                            <th>节假日 / 特殊节点</th>
+                                            <th>每日比例</th>
+                                            <th>累计比例</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="summary-info" id="summaryInfo"></div>
+                        </div>
+                        <!-- 右：去年同期参考 -->
+                        <div class="comparison-panel" id="historyPanel">
+                            <h3 class="panel-title secondary">去年同期分布（参考）</h3>
+                            <div id="historyNote"></div>
+                            <div class="results-table-container">
+                                <table class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>日期</th>
+                                            <th>星期</th>
+                                            <th>节假日</th>
+                                            <th>实际量</th>
+                                            <th>占月比例</th>
+                                            <th>累计比例</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="historyBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="summary-info" id="historySummary"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>© 2025 理想汽车获客运营工具 · 数据仅供内部参考 · Demo可视化版</p>
+        </footer>
+    </div>
+
+    <!-- 引入依赖库 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="app.js"></script>
+    <script src="demo-chart.js"></script>
+</body>
+</html>

@@ -1233,7 +1233,16 @@ function exportToExcel() {
     // 为每个车型创建一个工作表
     Object.keys(state.results).forEach(vehicle => {
         const ratios = state.results[vehicle];
-        const allocations = splitTargetByRatios(vehicle);
+
+        // 优先使用调整后的数据，如果没有则使用原始拆分
+        let allocations = null;
+        if (window.chartData && window.chartData.adjustedVehicleData && window.chartData.adjustedVehicleData[vehicle]) {
+            // 使用汇总视图的手动调整后数据（整数）
+            allocations = window.chartData.adjustedVehicleData[vehicle];
+        } else {
+            // 使用原始拆分函数
+            allocations = splitTargetByRatios(vehicle);
+        }
 
         const headers = ['日期', '星期', '节假日/特殊节点', '每日比例(%)', '累计比例(%)'];
         if (allocations) {
@@ -1316,7 +1325,16 @@ function exportToExcelHorizontal() {
     // 为每个车型添加一行数据
     vehicles.forEach(vehicle => {
         const ratios = state.results[vehicle];
-        const allocations = splitTargetByRatios(vehicle);
+
+        // 优先使用调整后的数据，如果没有则使用原始拆分
+        let allocations = null;
+        if (window.chartData && window.chartData.adjustedVehicleData && window.chartData.adjustedVehicleData[vehicle]) {
+            // 使用汇总视图的手动调整后数据（整数）
+            allocations = window.chartData.adjustedVehicleData[vehicle];
+        } else {
+            // 使用原始拆分函数
+            allocations = splitTargetByRatios(vehicle);
+        }
 
         const row = [vehicle];
 

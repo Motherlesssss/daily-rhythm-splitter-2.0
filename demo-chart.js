@@ -7,10 +7,13 @@ let chartData = {
     originalAmounts: [],     // 原始汇总数量
     adjustedAmounts: [],     // 调整后的汇总数量
     vehicleBreakdown: [],    // 各车型分解数据 [{W01: 100, W02: 50, ...}, ...]
-    adjustments: {},         // 记录调整 { dateIndex: newAmount }
+    adjustments: {},         // 记录调整 { dateIndex: multiplier } - 存储相对系数而非绝对值
     monthlyTarget: 0,        // 月度目标总量
-    adjustedVehicleData: {}  // 存储调整后的各车型实际数量 {vehicle: [amounts...]}
+    adjustedVehicleData: {}  // 存储调整后的各车型实际数量 {vehicle: [amounts...]} - 整数值
 };
+
+// 将 chartData 暴露到 window 对象，供导出函数使用
+window.chartData = chartData;
 
 let isDragging = false;
 let dragBarIndex = null;
@@ -345,15 +348,17 @@ function calculateSummaryData() {
     console.log('[calculateSummaryData] originalAmounts 长度:', chartData.originalAmounts.length);
     console.log('[calculateSummaryData] originalAmounts 前3天:', chartData.originalAmounts.slice(0, 3));
 
-    // 如果没有调整过，使用原始数据；否则需要重新应用调整
+    // 如果没有调整过，使用原始数据；否则需要重新应用调整系数
     if (!hasManualAdjustments) {
         // 没有手动调整，直接使用原始数据
         chartData.adjustedAmounts = [...chartData.originalAmounts];
     } else {
-        // 有手动调整，需要根据调整重新计算
+        // 有手动调整，根据相对系数重新计算调整后的值
         chartData.adjustedAmounts = chartData.originalAmounts.map((originalAmount, index) => {
             if (chartData.adjustments[index] !== undefined) {
-                return chartData.adjustments[index];
+                // 应用相对系数计算新值
+                const multiplier = chartData.adjustments[index];
+                return originalAmount * multiplier;
             }
             return originalAmount;
         });
@@ -391,14 +396,18 @@ function createSummaryChart() {
                 data: chartData.adjustedAmounts,
                 backgroundColor: function(context) {
                     const index = context.dataIndex;
-                    if (chartData.adjustments[index]) {
+                    const multiplier = chartData.adjustments[index];
+                    // 判断是否有实质调整（系数不接近1）
+                    if (multiplier !== undefined && Math.abs(multiplier - 1) > 0.001) {
                         return 'rgba(255, 149, 0, 0.7)';  // 已调整：橙色
                     }
                     return 'rgba(19, 102, 236, 0.8)';  // 未调整：蓝色
                 },
                 borderColor: function(context) {
                     const index = context.dataIndex;
-                    if (chartData.adjustments[index]) {
+                    const multiplier = chartData.adjustments[index];
+                    // 判断是否有实质调整（系数不接近1）
+                    if (multiplier !== undefined && Math.abs(multiplier - 1) > 0.001) {
                         return '#FF6B00';  // 已调整：橙色边框
                     }
                     return 'transparent';
@@ -448,7 +457,9 @@ function createSummaryChart() {
                                 `原始总量: ${hasTarget ? Math.round(original) : original.toFixed(2) + '%'}`
                             ];
 
-                            if (chartData.adjustments[index]) {
+                            const multiplier = chartData.adjustments[index];
+                            // 判断是否有实质调整（系数不接近1）
+                            if (multiplier !== undefined && Math.abs(multiplier - 1) > 0.001) {
                                 const change = value - original;
                                 const changePercent = ((change / original) * 100).toFixed(1);
                                 lines.push(`调整: ${change > 0 ? '+' : ''}${hasTarget ? Math.round(change) : change.toFixed(2) + '%'} (${changePercent > 0 ? '+' : ''}${changePercent}%)`);
@@ -554,7 +565,15 @@ function bindDragEvents(canvas) {
 
         // 更新数据
         chartData.adjustedAmounts[dragBarIndex] = newValue;
-        chartData.adjustments[dragBarIndex] = newValue;
+
+        // 记录相对系数而非绝对值
+        const originalValue = chartData.originalAmounts[dragBarIndex];
+        if (originalValue > 0) {
+            const multiplier = newValue / originalValue;
+            chartData.adjustments[dragBarIndex] = multiplier;
+        } else {
+            chartData.adjustments[dragBarIndex] = 1; // 原始值为0时，系数设为1
+        }
 
         // 更新图表
         chartInstance.update('none');
@@ -943,16 +962,16 @@ function renderSummarySummary() {
 // ============== 更新统计信息 ==============
 function updateAdjustmentStats() {
     const adjustedCount = Object.keys(chartData.adjustments).filter(idx => {
-        const original = chartData.originalAmounts[idx];
-        const adjusted = chartData.adjustedAmounts[idx];
-        return Math.abs(adjusted - original) > 0.01;
+        const multiplier = chartData.adjustments[idx];
+        // 判断系数是否接近1（即是否有实质调整）
+        return Math.abs(multiplier - 1) > 0.001;
     }).length;
 
     let maxChange = 0;
     Object.keys(chartData.adjustments).forEach(idx => {
-        const original = chartData.originalAmounts[idx];
-        const adjusted = chartData.adjustedAmounts[idx];
-        const changePercent = Math.abs((adjusted - original) / original * 100);
+        const multiplier = chartData.adjustments[idx];
+        // 将系数转换为变化百分比：(multiplier - 1) * 100
+        const changePercent = Math.abs((multiplier - 1) * 100);
         if (changePercent > maxChange) {
             maxChange = changePercent;
         }
